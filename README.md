@@ -1,131 +1,126 @@
-# NBA Data Pipeline
+# NBA Historical Database & Public Access Pipeline
 
-Unlock the complete history of NBA basketball through this enterprise-grade data pipeline. Housing every box score since 1946 and updating daily, this system maintains one of the most comprehensive NBA statistical databases ever assembled. Built for AWS cloud infrastructure, this pipeline automatically collects, processes, and archives detailed game statistics, creating a living record of basketball history that grows with each passing game.
+This project maintains one of the most comprehensive basketball statistical publicly available, encompassing:
 
-## 🌟 Key Features
+- Every NBA game since 1946 (66,000+ games)
+- Complete player statistics for each game where available (1.5 million+ records)
+- Comprehensive team performances (130,000+ statistical records)
+- Daily updates throughout the active season
 
-### Historical Database with Daily Updates
-- Complete collection of NBA box scores from 1946 to present
-- Automated daily game data collection from NBA.com
-- Sophisticated player and team statistics processing
-- Intelligent EC2 instance lifecycle management for efficient backups
-- Daily updates to Kaggle dataset for public access
+The system combines an optimized SQL Server database with an automated pipeline that makes this wealth of historical data freely accessible through Kaggle, updating nightly to ensure currency.
 
-### High-Performance Export Engine
-- Advanced temporal chunking for optimal performance
-- Memory-optimized processing tailored for t3.micro instances
-- Complete database schema preservation
-- Streamlined CSV exports of analytical views and tables
+**[Access the Complete NBA Dataset on Kaggle →](https://www.kaggle.com/datasets/eoinamoore/historical-nba-data-and-player-box-scores)**
 
-### Cloud-Native Architecture
-- Seamless integration with AWS RDS SQL Server
-- Serverless processing via AWS Lambda
-- Event-driven automation
-- Robust error handling and recovery
+## 📊 Project Overview
 
-## 🚀 Getting Started
+The project consists of two main components: a carefully optimized database schema and an automated data pipeline. The database preserves historical accuracy while maintaining high performance on resource-constrained infrastructure. The pipeline ensures this data remains current and publicly accessible.
 
-### System Requirements
+## 💾 Database Architecture
 
-#### Development Environment
-- Python 3.8 or higher
-- SQL Server ODBC Driver 17
-- Configured AWS CLI with appropriate permissions
+The SQL Server implementation features sophisticated optimization strategies documented in two key files:
 
-#### AWS Infrastructure
-- RDS SQL Server instance
-- Lambda execution environment
-- EC2 instance for backup operations
-- EventBridge scheduling rules
+- [`schema.md`](docs/schema.md): Comprehensive documentation of database design decisions
+- [`create_database.sql`](sql/create_database.sql): Complete SQL implementation
 
-### Initial Setup
+Key architectural features:
+- Reverse chronological indexing for optimal data access
+- Temporal data handling for team histories
+- Strategic index design patterns
+- Resource-efficient schema optimizations
+- Performance tuning for t3.micro instances
 
-1. Clone the repository and create your environment file:
-```bash
-cp .env.example .env
+## 🔄 Automated Pipeline
+
+The pipeline automates the entire process of collecting NBA statistics and making them publicly available. Each night, it executes a carefully orchestrated sequence of operations across multiple AWS services.
+
+### 🌐 Data Collection and Processing
+
+The process begins with a Lambda function that monitors NBA.com for new game data. This function, triggered nightly by CloudWatch Events, uses Python and pandas to process the latest NBA statistics. The function handles several critical tasks:
+
+1. Scraping game data from NBA.com using sophisticated web scraping techniques
+2. Processing and validating the statistical information
+3. Updating the SQL Server database on Amazon RDS using optimized batch operations
+4. Triggering the next phase through CloudWatch events upon successful completion
+
+### 📤 Public Distribution Process
+
+When the Lambda function completes successfully, it triggers a CloudWatch event that activates an EC2 instance. This instance executes the `nba_update.sh` shell script, which orchestrates the export and distribution process through several steps:
+
+1. Generates a complete SQL dump of the database using `create_sql_dump.py`
+2. Creates individual CSV files for each table using `export_tables.py`
+3. Uploads both the SQL dump and CSV files to Kaggle
+
+### 🏗️ Pipeline Architecture
+
+```
+[NBA.com] 
+    │
+    ▼
+[Lambda Function] ─────────► [Amazon RDS]
+    │                           │
+    │                           │
+    ▼                           ▼
+[CloudWatch Event] ────────► [EC2 Instance]
+                               │
+                               ├── create_sql_dump.py
+                               ├── export_tables.py
+                               │
+                               ▼
+                          [Kaggle Dataset]
+                               │
+                               ├── NBA_Database.sql
+                               └── Table_Name.csv (multiple files)
 ```
 
-2. Configure your environment variables:
-```bash
-# Core Infrastructure
-BASE_DIR=/home/ec2-user/nba_backup
-SCRIPTS_DIR=/home/ec2-user/nba_backup/scripts
+## ⚙️ Implementation Details
 
-# Database Configuration
-DB_SERVER=your-server.region.rds.amazonaws.com
-DB_NAME=NBA_Database
-DB_USERNAME=admin
-DB_PASSWORD=your_password
-DB_CONNECTION_TIMEOUT=30
-DB_LOGIN_TIMEOUT=30
-DB_COMMAND_TIMEOUT=300
+### 🚀 Lambda Function (`lambda_function.py`):
+- Uses pandas for efficient data processing
+- Implements connection pooling for database operations
+- Includes comprehensive error handling
+- Monitors execution time to stay within Lambda limits
 
-# Integration Points
-KAGGLE_USERNAME=your_username
-KAGGLE_KEY=your_key
-AWS_REGION=us-east-2
-EC2_INSTANCE_ID=i-xxxxxxxxxxxxxxxxx
+### 📋 Export Process (`nba_update.sh`):
+- Manages system resources during heavy export operations
+- Implements batched processing for large tables
+- Handles Kaggle API authentication and upload retries
+- Maintains detailed logging of all operations
 
-# Performance Tuning
-EXPORT_CHUNK_SIZE=50000
-PLAYER_STATS_CHUNK_SIZE=25000
-LAMBDA_TIMEOUT=900
-LAMBDA_MEMORY_SIZE=256
-```
+### 🛠️ Setup Requirements
 
-### Installation Guide
+Setting up the pipeline requires configuring several AWS services:
 
-The installation process is streamlined through our automated environment setup script:
+**EC2 Configuration:**
+- t3.micro instance with Amazon Linux 2
+- IAM role with necessary RDS and CloudWatch permissions
+- Installed dependencies: Python 3.8+, SQL Server ODBC driver
+- Configured Kaggle API credentials
 
-```bash
-# Make the setup script executable
-chmod +x setup_environment.sh
+**Lambda Configuration:**
+- Python 3.8 runtime environment
+- IAM role with RDS and CloudWatch permissions
+- Environment variables for database connection
+- CloudWatch Event trigger for nightly execution
 
-# Run the environment setup script
-./setup_environment.sh
-```
+## 📈 Historical Coverage and Scale
 
-This script automates several key setup tasks:
-- Creates and configures the Python virtual environment
-- Installs all required dependencies
-- Sets up the ODBC driver for SQL Server
-- Configures necessary system permissions
-- Validates the environment configuration
+The database preserves NBA statistics at unprecedented scale and granularity. It captures the complete statistical record of professional basketball in America, encompassing:
+- Every NBA game played since the league's founding (66,000+ games)
+- Individual player performance statistics from each game (1.5 million+ records)
+- Complete team statistical records (130,000+ records)
+- Nightly updates during the active season, ensuring the historical record grows with each game
 
-## 💻 Usage
+## 🔍 Documentation
 
-### Data Export Operations
-
-Execute the full backup pipeline:
-```bash
-./scripts/backup_nba.sh
-```
-
-Run individual components:
-```bash
-python src/export_tables.py
-python src/create_sql_dump.py
-```
-
-### Lambda Operations
-- Automatic execution via EventBridge schedule
-- Manual triggering through AWS Console
-- CLI-based invocation available
-- Real-time game data updates
-
-## 🔧 Performance Optimization
-
-The pipeline incorporates sophisticated performance optimizations:
-
-- Dynamic resource allocation for t3.micro instances
-- Intelligent CPU credit management
-- Memory-efficient batch processing algorithms
-- Configurable chunk sizes for different data types
-- Optimized database query patterns
+Comprehensive technical documentation:
+- [Database Schema Design](docs/schema.md)
+- [SQL Implementation](sql/create_database.sql)
+- [Lambda Function Details](docs/lambda.md)
+- [Export Process](docs/export.md)
 
 ## 🤝 Contributing
 
-We welcome contributions that enhance the pipeline's capabilities:
+I welcome contributions that enhance the pipeline's capabilities:
 
 1. Open an issue to discuss proposed changes
 2. Fork the repository
@@ -134,42 +129,15 @@ We welcome contributions that enhance the pipeline's capabilities:
 
 ## 📜 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - See LICENSE file for details.
+
+---
+
+*Find the complete NBA dataset on [Kaggle](https://www.kaggle.com/datasets/eoinamoore/historical-nba-data-and-player-box-scores)*
 
 ## 🙏 Acknowledgments
 
-This project stands on the shoulders of giants:
+This project is:
 - Powered by NBA.com's comprehensive statistics
 - Built on AWS's robust cloud infrastructure
-- Optimized for cost-effective, enterprise-grade deployment
-
-## 📊 Data Structure
-
-The database maintains several key components:
-
-1. **Player Statistics**: Game-by-game box scores for every player in NBA history
-2. **Team Statistics**: Comprehensive team-level statistics for every NBA game
-3. **Games**: Detailed game records including outcomes, attendance, and arena information
-4. **Players**: Biographical and physical data for all NBA players
-5. **Team Histories**: Historical tracking of franchise changes and relocations
-6. **Current Season Schedule**: Complete NBA schedule for the current season
-
-## 📊 Architecture Diagram
-
-```
-[NBA.com API] → [Lambda Function] → [RDS SQL Server]
-       ↓                 ↓                ↓
-[Daily Updates] → [Data Processing] → [Export Pipeline]
-       ↓                 ↓                ↓
-[Historical Data] → [Database Updates] → [Kaggle Dataset]
-```
-
-## 🔍 Monitoring and Maintenance
-
-The pipeline includes comprehensive monitoring capabilities:
-- Detailed logging of all operations
-- Error tracking and reporting
-- Performance metrics collection
-- Resource utilization monitoring
-
-Regular maintenance tasks are automated through scheduled jobs, ensuring data integrity and system reliability.
+- Inspired by Wyatt Walsh's NBA Database (https://www.kaggle.com/datasets/wyattowalsh/basketball)
