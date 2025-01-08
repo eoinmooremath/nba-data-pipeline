@@ -1,184 +1,134 @@
 # NBA Database Schema Documentation
 
-This document details the architecture and optimization strategies of the NBA statistical database, which houses every box score since 1946 and updates nightly. The schema is designed to balance historical completeness with query performance, especially for common access patterns in basketball analytics.
+This document details the design and optimization strategies implemented in the NBA statistics database. The schema is carefully structured to maintain historical accuracy while enabling efficient querying and updates.
 
-## Temporal Optimization Strategy
+## Table Structure and Dependencies
 
-A key architectural decision in this database is storing and accessing data in reverse chronological order (newest first). This design choice provides several benefits:
+The database follows a deliberate creation order to handle dependencies correctly:
 
-1. Natural alignment with data insertion patterns:
-   - New games are added nightly through the automated pipeline
-   - Insertions happen at the "front" of the indexes where the newest data lives
-   - Reduces index fragmentation from regular updates
+1. Base Tables (no dependencies):
+   - Teams (referenced by many other tables)
+   - Coaches (referenced by CoachHistory)
+   - Players (referenced by PlayerStatistics)
+2. Core Tables:
+   - Games (references Teams)
+   - TeamHistories (references Teams)
+3. Relationship Tables:
+   - CoachHistory (references Coaches, Teams)
+   - PlayerStatistics (references Players, Games, Teams)
+   - TeamStatistics (references Games, Teams)
+4. Views:
+   - GameTeams (schema-bound, references Games and TeamHistories)
+   - Other views (reference GameTeams)
 
-2. Optimized for common access patterns:
-   - Most queries focus on recent games and current season statistics
-   - Reverse chronological indexes eliminate the need for expensive sort operations
-   - Critical for performance on resource-constrained t3.micro instances
+## Key Optimization Strategies
 
-3. Efficient CSV generation:
-   - Export processes naturally produce newest-first ordered data
-   - Reduces memory requirements during file generation
-   - Minimizes sorting operations on limited EC2 resources
+### Temporal Optimization
+- Games table uses clustered index on gameDate DESC for efficient recent data access
+- All game-related tables (PlayerStatistics, TeamStatistics) maintain reverse chronological ordering
+- TeamHistories implements date range handling through yearFounded and yearActiveTill
 
-The physical storage order is implemented through carefully designed descending indexes on date and game ID fields across the core tables.
-
-## Core Tables Design
-
-### PlayerStatistics
-The heart of the database, optimized for efficient game-by-game player statistics retrieval:
+### Index Design
+1. Games Table:
 ```sql
-CREATE TABLE PlayerStatistics (
-    personId INT,
-    gameId INT,
-    teamId INT,
-    assists INT,
-    blocks INT,
-    fieldGoalsAttempted INT,
-    fieldGoalsMade INT,
-    fieldGoalsPercentage DECIMAL(6,3),
-    -- Additional statistics columns
-    CONSTRAINT PK_PlayerStatistics PRIMARY KEY CLUSTERED (gameId, personId)
-)
-
--- Index optimized for team-based queries
-CREATE NONCLUSTERED INDEX IX_PlayerStatistics_Team 
-ON PlayerStatistics (teamId, gameId)
+CREATE CLUSTERED INDEX [CIX_Games_GameDate] ON [dbo].[Games] ([gameDate] DESC);
+CREATE NONCLUSTERED INDEX [IX_Games_DateId] ON [dbo].[Games] 
+(
+    [gameDate] DESC,
+    [gameId] DESC,
+    [hometeamId] ASC,
+    [awayteamId] ASC,
+    [winner] ASC,
+    [homeScore] ASC,
+    [awayScore] ASC
+);
 ```
 
-Key optimization decisions:
-- Clustered index on (gameId, personId) optimizes the most common query pattern: retrieving player performances from specific games
-- Strategic nonclustered index on teamId supports efficient team roster analysis
-- Decimal(6,3) for percentage fields balances precision with storage efficiency
-
-### Games
-Central reference table linking teams, scores, and game metadata:
+2. PlayerStatistics Table:
 ```sql
-CREATE TABLE Games (
-    gameId INT PRIMARY KEY NONCLUSTERED,
-    gameDate DATETIME,
-    hometeamId INT,
-    awayteamId INT,
-    homeScore INT,
-    awayScore INT,
-    winner INT,
-    -- Additional metadata columns
-)
-
--- Optimized for date-based queries, newest first
-CREATE NONCLUSTERED INDEX IX_Games_DateId ON Games 
-    (gameDate DESC, gameId DESC, hometeamId, awayteamId, winner, homeScore, awayScore)
-
--- Optimized for team-based queries
-CREATE NONCLUSTERED INDEX IX_Games_Teams ON Games 
-    (gameDate, winner, homeScore, awayScore, hometeamId, awayteamId)
-```
-
-Index strategy:
-- Date-based index supports efficient historical queries
-- Team-based index optimizes season record calculations
-- Intentionally nonclustered primary key allows for flexible query patterns
-
-### TeamHistories
-Tracks franchise changes and relocations with temporal support:
-```sql
-CREATE TABLE TeamHistories (
-    teamId INT,
-    teamCity NVARCHAR(100),
-    teamName NVARCHAR(100),
-    yearFounded INT,
-    yearActiveTill INT,
-    CONSTRAINT CIX_TeamHistories PRIMARY KEY CLUSTERED 
-        (teamId, yearFounded, yearActiveTill)
+CONSTRAINT [PK_PlayerStatistics] PRIMARY KEY CLUSTERED 
+(
+    [gameId] DESC,
+    [personId] ASC
 )
 ```
 
-Temporal tracking:
-- Clustered index supports efficient historical lookups
-- Maintains accurate team names and locations throughout NBA history
-
-## Optimized Views
-
-### GameTeams
-A schema-bound view that optimizes common game data retrieval:
+3. TeamHistories Table:
 ```sql
-CREATE VIEW GameTeams WITH SCHEMABINDING AS
+CREATE CLUSTERED INDEX [CIX_TeamHistories] ON [dbo].[TeamHistories]
+(
+   [teamId] ASC,
+   [yearFounded] ASC,
+   [yearActiveTill] ASC
+);
+```
+
+### View Optimization
+The schema implements a hierarchical view structure for efficient data access:
+
+1. Base View (Schema-bound):
+```sql
+CREATE VIEW [dbo].[GameTeams] WITH SCHEMABINDING
+AS
 SELECT 
-    G.gameId,
-    G.gameDate,
-    G.hometeamId,
-    G.awayteamId,
-    HT.teamCity as hometeamCity,
-    HT.teamName as hometeamName,
-    AT.teamCity as awayteamCity,
-    AT.teamName as awayteamName
+   G.gameId,
+   G.gameDate,
+   -- Additional fields
 FROM dbo.Games G
-INNER JOIN dbo.TeamHistories HT 
-    ON G.hometeamid = HT.teamId 
-    AND YEAR(G.gameDate) BETWEEN HT.yearFounded AND HT.yearActiveTill
-INNER JOIN dbo.TeamHistories AT 
-    ON G.awayteamid = AT.teamId
-    AND YEAR(G.gameDate) BETWEEN AT.yearFounded AND AT.yearActiveTill
+INNER JOIN dbo.TeamHistories HT
+   ON G.hometeamid = HT.teamId 
+   AND YEAR(G.gameDate) BETWEEN HT.yearFounded AND HT.yearActiveTill
 ```
 
-Key features:
-- SCHEMABINDING ensures data integrity
-- Temporal joins maintain historical accuracy
-- Precomputed common joins improve query performance
+2. Derived Views:
+- DetailedGames
+- DetailedPlayerStatistics
+- DetailedTeamStatistics
 
-### DetailedPlayerStatistics
-Comprehensive player statistics view with team context:
-```sql
-CREATE VIEW DetailedPlayerStatistics AS
-SELECT 
-    P.firstName,
-    P.lastName,
-    PS.personId,
-    PS.gameId,
-    GT.gameDate,
-    -- Additional calculated columns
-FROM PlayerStatistics PS WITH (NOLOCK)
-INNER JOIN Players P WITH (NOLOCK) 
-    ON PS.personId = P.personId
-INNER JOIN GameTeams GT WITH (NOLOCK)
-    ON PS.gameId = GT.gameId
-```
+### Performance Features
 
-Optimization decisions:
-- NOLOCK hints for improved read performance
-- Leverages the GameTeams view for efficient team name resolution
-- Calculates common basketball metrics at the view level
+1. Temporal Data Management:
+- Reverse chronological storage aligns with insertion patterns
+- Efficient handling of team name/location changes
+- Optimized for recent data access
 
-## Performance Considerations
+2. Index Strategy:
+- Clustered indexes on frequently accessed columns
+- Strategic use of included columns
+- Covering indexes for common queries
 
-The schema incorporates several key performance optimizations:
+3. View Hierarchy:
+- Schema-bound base view for team name resolution
+- NOLOCK hints for high-concurrency reading
+- Efficient handling of team/opponent logic
 
-1. Strategic Index Placement:
-   - Clustered indexes on most frequently accessed columns
-   - Covering indexes for common query patterns
-   - Balanced index strategy to optimize both reads and writes
+## Table Details
 
-2. Temporal Data Management:
-   - Efficient handling of team relocations and name changes
-   - Historical accuracy maintained through careful join conditions
-   - Date-based indexing for timeline queries
+### Core Tables
+1. Games
+   - Clustered on gameDate DESC
+   - Multiple indexes for different access patterns
+   - Supports both date-based and team-based queries
 
-3. View Optimization:
-   - Schema binding where appropriate
-   - Strategic use of NOLOCK hints
-   - Precomputed common joins and calculations
+2. PlayerStatistics
+   - Clustered on (gameId DESC, personId)
+   - Optimized for player performance queries
+   - Efficient temporal access
 
-4. Data Type Selection:
-   - INT for IDs and statistical counts
-   - DECIMAL(6,3) for percentages
-   - NVARCHAR for variable-length text fields
-   - Appropriate length constraints for all string columns
+3. TeamStatistics
+   - Clustered on (gameId DESC, teamId)
+   - Comprehensive game statistics
+   - Includes advanced metrics
 
-## Maintenance Considerations
+### Support Tables
+1. TeamHistories
+   - Tracks franchise changes over time
+   - Efficiently handles team relocations
+   - Optimized for date range queries
 
-The schema is designed for nightly updates with minimal performance impact:
-- Indexes optimized for batch inserts of new games
-- Efficient update paths for player and team statistics
-- Minimal index fragmentation from regular operations
+2. Players
+   - Biographical and physical data
+   - Indexed for name searches
+   - Supports career tracking
 
-This design supports both efficient querying of historical data and seamless integration of nightly updates from ongoing NBA games.
+This schema design enables efficient handling of both historical analysis and nightly updates while maintaining optimal query performance on resource-constrained infrastructure.
