@@ -11,11 +11,19 @@ The system combines an optimized SQL Server database with an automated pipeline 
 
 **[Access the Complete NBA Dataset on Kaggle →](https://www.kaggle.com/datasets/eoinamoore/historical-nba-data-and-player-box-scores)**
 
+<<<<<<< HEAD
 ## 🌠 Project Overview
 
 The project consists of two main components: a carefully optimized database schema and an automated data pipeline. The database preserves historical accuracy while maintaining high performance on resource-constrained infrastructure. The pipeline ensures this data remains current and publicly accessible.
 
 ## 🗄️ Database Architecture
+=======
+## Project Overview
+
+The project consists of two main components: a carefully optimized database schema and an automated data pipeline. The database preserves historical accuracy while maintaining high performance on resource-constrained infrastructure. The pipeline ensures this data remains current and publicly accessible.
+
+## Database Architecture
+>>>>>>> a4c1fca541a2b83e9f60b0a467adaee3b78120b4
 
 The SQL Server implementation features sophisticated optimization strategies documented in two key files:
 
@@ -29,7 +37,7 @@ Key architectural features:
 - Resource-efficient schema optimizations
 - Performance tuning for t3.micro instances
 
-## 🔄 Automated Pipeline
+## Automated Pipeline
 
 The pipeline automates the entire process of collecting NBA statistics and making them publicly available. Each night, it executes a carefully orchestrated sequence of operations across multiple AWS services.
 
@@ -42,7 +50,11 @@ The process begins with a Lambda function that monitors NBA.com for new game dat
 3. Updating the SQL Server database on Amazon RDS using optimized batch operations
 4. Triggering the next phase through CloudWatch events upon successful completion
 
+<<<<<<< HEAD
 ###  Public Distribution Process
+=======
+### Public Distribution Process
+>>>>>>> a4c1fca541a2b83e9f60b0a467adaee3b78120b4
 
 When the Lambda function completes successfully, it triggers a CloudWatch event that activates an EC2 instance. This instance executes the `nba_update.sh` shell script, which orchestrates the export and distribution process through several steps:
 
@@ -72,7 +84,7 @@ When the Lambda function completes successfully, it triggers a CloudWatch event 
                                └── Table_Name.csv (multiple files)
 ```
 
-## ⚙️ Implementation Details
+## Implementation Details
 
 ### Lambda Function (`lambda_function.py`)
 - Collects nightly game data from NBA.com
@@ -106,7 +118,11 @@ When the Lambda function completes successfully, it triggers a CloudWatch event 
 - Maintains comprehensive logging
 
 
+<<<<<<< HEAD
 ## 🛠️ Setup Requirements
+=======
+### Setup Requirements
+>>>>>>> a4c1fca541a2b83e9f60b0a467adaee3b78120b4
 
 Setting up the pipeline requires configuring several AWS services:
 
