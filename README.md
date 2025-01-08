@@ -92,22 +92,6 @@ This script automates several key setup tasks:
 - Configures necessary system permissions
 - Validates the environment configuration
 
-If you need to perform a manual installation, you can still set up your environment step by step:
-
-```bash
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-.\venv\Scripts\activate   # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Install ODBC driver (Amazon Linux 2)
-curl https://packages.microsoft.com/config/rhel/7/prod.repo | sudo tee /etc/yum.repos.d/mssql-release.repo
-sudo ACCEPT_EULA=Y yum install -y msodbcsql17
-```
-
 ## 💻 Usage
 
 ### Data Export Operations
