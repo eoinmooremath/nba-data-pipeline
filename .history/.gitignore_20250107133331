@@ -1,0 +1,15 @@
+# AWS credentials
+.aws/
+aws.credentials
+
+# Environment files
+.env
+**/config.yaml
+!config/config.example.yaml
+
+# Database credentials
+**/credentials.py
+**/secrets.py
+
+# Lambda layer packages
+**/layer/*
