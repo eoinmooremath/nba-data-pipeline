@@ -12,7 +12,7 @@ venv/
 
 # Generated files
 *.csv
-*.sql
+
 *.log
 
 .history/
