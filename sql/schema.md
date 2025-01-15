@@ -98,9 +98,8 @@ INNER JOIN dbo.TeamHistories HT
   
 
 3. View Hierarchy:
-- Schema-bound base view for team name resolution
-- NOLOCK hints for high-concurrency reading
 - Efficient handling of team/opponent logic
+- NOLOCK hints for high-concurrency reading
 
 ## Table Details
 
