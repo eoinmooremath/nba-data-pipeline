@@ -95,7 +95,7 @@ INNER JOIN dbo.TeamHistories HT
 2. Index Strategy:
 - Clustered indexes on frequently accessed columns
 - Strategic use of included columns
-- Covering indexes for common queries
+  
 
 3. View Hierarchy:
 - Schema-bound base view for team name resolution
